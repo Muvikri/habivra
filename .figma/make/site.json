@@ -1,0 +1,10 @@
+{
+  "description": "Create, edit, and manage markdown-based content effortlessly with a user-friendly interface designed for efficient documentation and note-taking.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

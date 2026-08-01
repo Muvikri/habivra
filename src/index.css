@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0fdf4;
+  --bg-card: #ffffff;
+  --bg-elevated: #f8fafc;
+  --border-default: #d1fae5;
+  --border-subtle: #e7f5ee;
+  --text-primary: #0a2e1a;
+  --text-secondary: #16533a;
+  --text-muted: #4b7a5c;
+  --text-inverse: #f0fdf4;
+  --accent-primary: #16a34a;
+  --accent-secondary: #22c55e;
+  --accent-light: #86efac;
+  --accent-muted: #d1fae5;
+  --accent-lime: #a3e635;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  --bg-primary: #111613;
+  --bg-secondary: #172019;
+  --bg-card: #19211b;
+  --bg-elevated: #202a22;
+  --border-default: #304035;
+  --border-subtle: #263229;
+  --text-primary: #edf3ee;
+  --text-secondary: #c5d2c8;
+  --text-muted: #91a394;
+  --text-inverse: #111613;
+  --accent-primary: #4eaf74;
+  --accent-secondary: #5fbd82;
+  --accent-light: #9bd5ac;
+  --accent-muted: #243b2a;
+  --accent-lime: #98bd62;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.dark .shadow-xs,
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: var(--shadow-card) !important;
+}
+
+.dark .pulse-ring {
+  animation: none;
+}
+
+.dark [class*='drop-shadow'] {
+  filter: none !important;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Standardized Emoji font stack */
+.emoji,
+.font-emoji {
+  font-family:
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    "Android Emoji",
+    "EmojiSymbols",
+    "EmojiOne Mozilla",
+    sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  display: inline-block;
+}
+
+/* Animations */
+@keyframes leaf-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(6deg); }
+}
+
+@keyframes leaf-float2 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-8deg); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes bar-grow {
+  0% { width: 0%; }
+}
+
+@keyframes chart-bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -16px, 0) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate3d(var(--confetti-drift-x), var(--confetti-drift-y), 0) rotate(var(--confetti-rotation)); opacity: 0; }
+}
+
+.leaf-anim-1 { animation: leaf-float 4s ease-in-out infinite; }
+.leaf-anim-2 { animation: leaf-float2 5s ease-in-out infinite 0.5s; }
+.leaf-anim-3 { animation: leaf-float 4.5s ease-in-out infinite 1s; }
+.leaf-anim-4 { animation: leaf-float2 3.8s ease-in-out infinite 1.5s; }
+
+.pop-in { animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.slide-up { animation: slide-up 0.35s ease-out forwards; }
+.bar-grow { animation: bar-grow 0.8s ease-out forwards; animation-fill-mode: both; }
+.chart-bar-grow { transform-origin: bottom; animation: chart-bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
+.confetti-piece { animation: confetti-fall var(--confetti-duration) cubic-bezier(0.16, 0.72, 0.35, 1) var(--confetti-delay) forwards; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border-subtle) 25%, var(--border-default) 50%, var(--border-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}

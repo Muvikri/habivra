@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,7 +8,7 @@ import { userService } from '../services/userService'
 import type { Theme } from '../types'
 import { Emoji } from '../components/shared/Emoji'
 import { BottomNav } from '../components/layout/BottomNav'
-import { Moon, Sun, Monitor, Bell, LogOut, Heart, Sparkles } from 'lucide-react'
+import { Moon, Sun, Monitor, Bell, LogOut, Heart, Sparkles, Camera, Pencil, X } from 'lucide-react'
 import { useToast } from '../hooks/useToast'
 import { ToastProvider } from '../components/shared/ToastProvider'
 
@@ -21,6 +21,12 @@ export function ProfilePage() {
   const [reflectionSelected, setReflectionSelected] = useState<string | null>(null)
   const [reflectionAiReply, setReflectionAiReply] = useState<string | null>(null)
   const [reminder, setReminder] = useState(user?.reminder_enabled ?? true)
+  const [showProfileEditor, setShowProfileEditor] = useState(false)
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const moods = [
     { emoji: '🤩', label: 'Luar Biasa', reply: 'Hebat! Konsistensimu minggu ini sungguh menginspirasi. Pertahankan!' },
@@ -56,6 +62,28 @@ export function ProfilePage() {
     navigate('/login')
   }
 
+  const handleAvatarChange = (file?: File) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user || !profileName.trim()) return
+    setSavingProfile(true)
+    try {
+      const avatarUrl = avatarFile ? await userService.uploadAvatar(user.id, avatarFile) : user.avatar_url
+      const updatedUser = await userService.updateProfile(user.id, { name: profileName.trim(), avatar_url: avatarUrl })
+      setUser(updatedUser)
+      setShowProfileEditor(false)
+      showToast('Profil berhasil diperbarui', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Profil belum dapat diperbarui', 'error')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col justify-between">
       <ToastProvider toasts={toasts} />
@@ -65,7 +93,8 @@ export function ProfilePage() {
 
         {/* User Card */}
         <div className="p-5 rounded-3xl bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-card)] border border-[var(--border-default)] shadow-sm flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--accent-muted)] border-2 border-[var(--border-default)] flex items-center justify-center shrink-0 shadow-md">
+          <div className="relative w-16 h-16 rounded-2xl bg-[var(--accent-muted)] border-2 border-[var(--border-default)] flex items-center justify-center shrink-0 shadow-md overflow-hidden">
+            {user?.avatar_url && <img src={user.avatar_url} alt="Foto profil" className="absolute inset-0 w-full h-full object-cover" />}
             <Emoji size="3xl">🌿</Emoji>
           </div>
           <div className="flex-1 min-w-0">
@@ -78,7 +107,34 @@ export function ProfilePage() {
               </span>
             </div>
           </div>
+          <button onClick={() => setShowProfileEditor(true)} aria-label="Edit profil" className="p-2 rounded-xl text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]">
+            <Pencil className="size-4" />
+          </button>
         </div>
+
+        {showProfileEditor && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-3xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-black text-[var(--text-primary)]">Edit Profil</h2>
+                <button onClick={() => setShowProfileEditor(false)} aria-label="Tutup" className="p-2 text-[var(--text-muted)]"><X className="size-5" /></button>
+              </div>
+              <div className="mt-5 flex flex-col items-center gap-3">
+                <button onClick={() => avatarInputRef.current?.click()} className="relative w-24 h-24 overflow-hidden rounded-3xl bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent-primary)]">
+                  {avatarPreview ? <img src={avatarPreview} alt="Pratinjau foto profil" className="w-full h-full object-cover" /> : <Emoji size="3xl">🌿</Emoji>}
+                  <span className="absolute bottom-0 right-0 p-2 rounded-tl-xl bg-[var(--accent-primary)] text-white"><Camera className="size-4" /></span>
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={event => handleAvatarChange(event.target.files?.[0])} />
+                <p className="text-[11px] font-semibold text-[var(--text-muted)]">Pilih gambar hingga 2 MB</p>
+              </div>
+              <label className="block mt-5 text-xs font-bold text-[var(--text-primary)]">Nama tampilan</label>
+              <input value={profileName} onChange={event => setProfileName(event.target.value)} maxLength={40} className="w-full mt-2 px-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]" />
+              <button onClick={handleSaveProfile} disabled={savingProfile || !profileName.trim()} className="w-full mt-5 py-3.5 rounded-xl bg-[var(--accent-primary)] text-white text-xs font-black disabled:opacity-50">
+                {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Weekly Reflection Card */}
         <div className="p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-default)] shadow-xs space-y-3">

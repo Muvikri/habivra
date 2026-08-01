@@ -27,6 +27,7 @@ function createDefaultProfile(userId: string): UserProfile {
 export interface IUserService {
   getProfile(userId: string): Promise<UserProfile>
   updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile>
+  uploadAvatar(userId: string, file: File): Promise<string>
   addXP(userId: string, xpGain: number): Promise<UserProfile>
 }
 
@@ -54,6 +55,23 @@ class SupabaseUserService implements IUserService {
       .single()
     if (error || !data) return { ...createDefaultProfile(userId), ...updates }
     return data as UserProfile
+  }
+
+  async uploadAvatar(userId: string, file: File): Promise<string> {
+    if (!file.type.startsWith('image/')) throw new Error('Pilih file gambar yang valid.')
+    if (file.size > 2 * 1024 * 1024) throw new Error('Ukuran foto maksimal 2 MB.')
+    if (USE_MOCK) return URL.createObjectURL(file)
+
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `${userId}/avatar.${extension}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file, {
+      upsert: true,
+      cacheControl: '3600',
+      contentType: file.type,
+    })
+    if (error) throw error
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    return `${data.publicUrl}?v=${Date.now()}`
   }
 
   async addXP(userId: string, xpGain: number): Promise<UserProfile> {

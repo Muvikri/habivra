@@ -22,6 +22,14 @@ function AppTheme({ children }: { children: ReactNode }) {
   return <ThemeProvider userId={user?.id}>{children}</ThemeProvider>
 }
 
+function SetupOnly({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+  if (user.onboarding_completed) return <Navigate to="/app/dashboard" replace />
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -32,9 +40,9 @@ export default function App() {
             <Route path="/" element={<Navigate to="/splash" replace />} />
             <Route path="/splash" element={<SplashPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/setup/goals" element={<GoalSetupPage />} />
-            <Route path="/setup/habits" element={<HabitRecPage />} />
+            <Route path="/onboarding" element={<SetupOnly><OnboardingPage /></SetupOnly>} />
+            <Route path="/setup/goals" element={<SetupOnly><GoalSetupPage /></SetupOnly>} />
+            <Route path="/setup/habits" element={<SetupOnly><HabitRecPage /></SetupOnly>} />
 
             <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
             <Route path="/app/dashboard" element={<DashboardPage />} />

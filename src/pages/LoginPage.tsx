@@ -41,8 +41,9 @@ export function LoginPage() {
       const profile = await authService.loginAsGuest()
       setUser(profile)
       navigate(profile.onboarding_completed ? '/app/dashboard' : '/onboarding')
-    } catch {
-      setErrorMsg('Gagal masuk sebagai Tamu.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal masuk sebagai Tamu.'
+      setErrorMsg(`Gagal masuk sebagai Tamu: ${message}`)
     } finally {
       setLoading(false)
     }

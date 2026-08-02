@@ -39,7 +39,8 @@ export function HabitDetailPage() {
 
     const newDoneState = !habit.done
     try {
-      const updated = await habitService.toggleHabit(habit.id, newDoneState)
+      if (!user) return
+      const updated = await habitService.toggleHabit(user.id, habit.id, newDoneState)
       setHabit(updated)
       setShowConfirmDone(false)
 
@@ -59,7 +60,8 @@ export function HabitDetailPage() {
   const handleDelete = async () => {
     if (!habit) return
     try {
-      await habitService.deleteHabit(habit.id)
+      if (!user) return
+      await habitService.deleteHabit(user.id, habit.id)
       showToast('Habit berhasil dihapus', 'info')
       navigate('/app/dashboard')
     } catch {

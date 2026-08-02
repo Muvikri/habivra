@@ -1,29 +1,34 @@
 import { supabase } from '../lib/supabase'
 import { MOCK_HABITS } from '../constants/mockData'
 import type { Habit } from '../types'
+import { offlineStore } from './offlineStore'
 
 const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
 
 let localHabits = [...MOCK_HABITS]
+const isOnline = () => typeof navigator === 'undefined' || navigator.onLine
 
 export interface IHabitService {
   getHabits(userId: string): Promise<Habit[]>
   getHabitById(id: string): Promise<Habit | null>
-  toggleHabit(id: string, done: boolean): Promise<Habit>
+  toggleHabit(userId: string, id: string, done: boolean): Promise<Habit>
   createHabit(habit: Omit<Habit, 'id' | 'created_at' | 'updated_at'>): Promise<Habit>
-  deleteHabit(id: string): Promise<void>
+  deleteHabit(userId: string, id: string): Promise<void>
 }
 
 class SupabaseHabitService implements IHabitService {
   async getHabits(userId: string): Promise<Habit[]> {
     if (USE_MOCK) return localHabits
+    if (!isOnline()) return offlineStore.getHabits(userId)
     const { data, error } = await supabase
       .from('habits')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
-    if (error) throw error
-    return data as Habit[]
+    if (error) return offlineStore.getHabits(userId)
+    const habits = (data || []) as Habit[]
+    await offlineStore.setHabits(userId, habits)
+    return habits
   }
 
   async getHabitById(id: string): Promise<Habit | null> {
@@ -39,10 +44,19 @@ class SupabaseHabitService implements IHabitService {
     return data as Habit
   }
 
-  async toggleHabit(id: string, done: boolean): Promise<Habit> {
+  async toggleHabit(userId: string, id: string, done: boolean): Promise<Habit> {
     if (USE_MOCK) {
       localHabits = localHabits.map(h => h.id === id ? { ...h, done, streak_count: done ? h.streak_count + 1 : Math.max(0, h.streak_count - 1) } : h)
       return localHabits.find(h => h.id === id)!
+    }
+    const cached = await offlineStore.getHabits(userId)
+    const localHabit = cached.find(habit => habit.id === id)
+    if (!localHabit) throw new Error('Habit tidak ditemukan.')
+    const localUpdated = { ...localHabit, done }
+    await offlineStore.setHabits(userId, cached.map(habit => habit.id === id ? localUpdated : habit))
+    if (!isOnline()) {
+      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done })
+      return localUpdated
     }
     const { data, error } = await supabase
       .from('habits')
@@ -50,20 +64,30 @@ class SupabaseHabitService implements IHabitService {
       .eq('id', id)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done })
+      return localUpdated
+    }
     return data as Habit
   }
 
   async createHabit(habit: Omit<Habit, 'id' | 'created_at' | 'updated_at'>): Promise<Habit> {
+    if (USE_MOCK) {
+      const newHabit: Habit = { ...habit, id: `h-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+      localHabits.push(newHabit)
+      return newHabit
+    }
+
     const newHabit: Habit = {
       ...habit,
-      id: USE_MOCK ? `h-${Date.now()}` : habit.user_id,
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
-
-    if (USE_MOCK) {
-      localHabits.push(newHabit)
+    const cached = await offlineStore.getHabits(habit.user_id)
+    await offlineStore.setHabits(habit.user_id, [...cached, newHabit])
+    if (!isOnline()) {
+      await offlineStore.enqueue(habit.user_id, { type: 'habit.create', habit: newHabit })
       return newHabit
     }
 
@@ -72,17 +96,28 @@ class SupabaseHabitService implements IHabitService {
       .insert(habit)
       .select()
       .single()
-    if (error) throw error
-    return data as Habit
+    if (error) {
+      await offlineStore.enqueue(habit.user_id, { type: 'habit.create', habit: newHabit })
+      return newHabit
+    }
+    const synced = data as Habit
+    await offlineStore.setHabits(habit.user_id, [...cached, synced])
+    return synced
   }
 
-  async deleteHabit(id: string): Promise<void> {
+  async deleteHabit(userId: string, id: string): Promise<void> {
     if (USE_MOCK) {
       localHabits = localHabits.filter(h => h.id !== id)
       return
     }
+    const cached = await offlineStore.getHabits(userId)
+    await offlineStore.setHabits(userId, cached.filter(habit => habit.id !== id))
+    if (!isOnline()) {
+      await offlineStore.enqueue(userId, { type: 'habit.delete', id })
+      return
+    }
     const { error } = await supabase.from('habits').delete().eq('id', id)
-    if (error) throw error
+    if (error) await offlineStore.enqueue(userId, { type: 'habit.delete', id })
   }
 }
 

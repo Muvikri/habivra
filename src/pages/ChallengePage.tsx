@@ -25,7 +25,8 @@ export function ChallengePage() {
 
   const handleJoin = async (id: string) => {
     try {
-      const updated = await challengeService.joinChallenge(id)
+      if (!user) return
+      const updated = await challengeService.joinChallenge(user.id, id)
       setChallenges(prev => prev.map(c => c.id === id ? updated : c))
       showToast(`Berhasil mengikuti tantangan "${updated.title}"! 🎯`, 'success')
     } catch {

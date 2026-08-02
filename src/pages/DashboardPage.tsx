@@ -64,7 +64,7 @@ export function DashboardPage() {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, done } : h))
 
     try {
-      await habitService.toggleHabit(id, done)
+      await habitService.toggleHabit(user.id, id, done)
       if (done) {
         await userService.addXP(user.id, target.xp)
         await refresh()

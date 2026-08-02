@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { userService } from '../services/userService'
+import { syncService } from '../services/syncService'
 import type { UserProfile } from '../types'
 import { MOCK_PROFILE } from '../constants/mockData'
 
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const profile = await userService.getProfile(id)
       setUser(profile)
+      void syncService.start(id)
     } catch {
       setUser(MOCK_PROFILE)
     } finally {

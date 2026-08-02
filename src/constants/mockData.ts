@@ -67,7 +67,7 @@ export const MOCK_HABITS: Habit[] = [
     icon: '♻️',
     title: 'Memilah Sampah',
     xp: 10,
-    done: true,
+    done: false,
     desc: 'Memisahkan sampah organik dan anorganik memudahkan proses daur ulang dan mengurangi beban TPA.',
     benefits: ['Memudahkan proses daur ulang', 'Mengurangi beban tempat pembuangan', 'Mendukung ekonomi sirkular'],
     impact: '0.5 kg sampah terdaur ulang',

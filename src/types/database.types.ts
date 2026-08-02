@@ -59,6 +59,17 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['challenges']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['challenges']['Insert']>
       }
+      habit_logs: {
+        Row: {
+          id: string
+          user_id: string
+          habit_id: string
+          completed_on: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['habit_logs']['Row'], 'id' | 'created_at'>
+        Update: never
+      }
       chat_messages: {
         Row: {
           id: string

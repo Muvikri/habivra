@@ -3,7 +3,7 @@ import type { Challenge, Habit } from '../types'
 
 type QueueOperation =
   | { type: 'habit.create'; habit: Habit }
-  | { type: 'habit.toggle'; id: string; done: boolean }
+  | { type: 'habit.toggle'; id: string; done: boolean; completedOn: string }
   | { type: 'habit.delete'; id: string }
   | { type: 'challenge.join'; id: string }
   | { type: 'challenge.progress'; id: string; progress: number }

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import { MOCK_HABITS } from '../constants/mockData'
 import type { Habit } from '../types'
 import { offlineStore } from './offlineStore'
+import { dateKey, progressService } from './progressService'
 
 const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
 
@@ -55,7 +56,7 @@ class SupabaseHabitService implements IHabitService {
     const localUpdated = { ...localHabit, done }
     await offlineStore.setHabits(userId, cached.map(habit => habit.id === id ? localUpdated : habit))
     if (!isOnline()) {
-      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done })
+      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done, completedOn: dateKey(new Date()) })
       return localUpdated
     }
     const { data, error } = await supabase
@@ -65,8 +66,13 @@ class SupabaseHabitService implements IHabitService {
       .select()
       .single()
     if (error) {
-      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done })
+      await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done, completedOn: dateKey(new Date()) })
       return localUpdated
+    }
+    if (done) {
+      await progressService.recordCompletion(userId, id)
+    } else {
+      await progressService.removeTodayCompletion(userId, id)
     }
     return data as Habit
   }

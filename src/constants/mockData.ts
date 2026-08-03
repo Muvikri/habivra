@@ -15,6 +15,8 @@ export const MOCK_PROFILE: UserProfile = {
   avatar_url: null,
   theme: 'dark',
   reminder_enabled: true,
+  reminder_hour: 20,
+  reminder_minute: 0,
   language: 'id',
 }
 

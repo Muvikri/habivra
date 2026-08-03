@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { authService } from '../services/authService'
+import { notificationService } from '../services/notificationService'
 import { userService } from '../services/userService'
 import type { Theme } from '../types'
 import { Emoji } from '../components/shared/Emoji'
@@ -11,6 +12,13 @@ import { BottomNav } from '../components/layout/BottomNav'
 import { Moon, Sun, Monitor, Bell, LogOut, Heart, Sparkles, Camera, Pencil, X } from 'lucide-react'
 import { useToast } from '../hooks/useToast'
 import { ToastProvider } from '../components/shared/ToastProvider'
+
+const DEFAULT_REMINDER_HOUR = 20
+const DEFAULT_REMINDER_MINUTE = 0
+
+function formatReminderTime(hour: number, minute: number) {
+  return `${String(hour).padStart(2, '0')}.${String(minute).padStart(2, '0')}`
+}
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -21,12 +29,21 @@ export function ProfilePage() {
   const [reflectionSelected, setReflectionSelected] = useState<string | null>(null)
   const [reflectionAiReply, setReflectionAiReply] = useState<string | null>(null)
   const [reminder, setReminder] = useState(user?.reminder_enabled ?? true)
+  const [reminderHour, setReminderHour] = useState(user?.reminder_hour ?? DEFAULT_REMINDER_HOUR)
+  const [reminderMinute, setReminderMinute] = useState(user?.reminder_minute ?? DEFAULT_REMINDER_MINUTE)
+  const [savingReminder, setSavingReminder] = useState(false)
   const [showProfileEditor, setShowProfileEditor] = useState(false)
   const [profileName, setProfileName] = useState(user?.name || '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '')
   const [savingProfile, setSavingProfile] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setReminder(user?.reminder_enabled ?? true)
+    setReminderHour(user?.reminder_hour ?? DEFAULT_REMINDER_HOUR)
+    setReminderMinute(user?.reminder_minute ?? DEFAULT_REMINDER_MINUTE)
+  }, [user?.reminder_enabled, user?.reminder_hour, user?.reminder_minute])
 
   const moods = [
     { emoji: '🤩', label: 'Luar Biasa', reply: 'Hebat! Konsistensimu minggu ini sungguh menginspirasi. Pertahankan!' },
@@ -44,10 +61,76 @@ export function ProfilePage() {
 
   const handleToggleReminder = async () => {
     const nextVal = !reminder
+    if (!user) return
+
     setReminder(nextVal)
-    if (user) {
-      await userService.updateProfile(user.id, { reminder_enabled: nextVal })
-      showToast(nextVal ? 'Pengingat harian diaktifkan 🔔' : 'Pengingat harian dinonaktifkan', 'info')
+
+    if (nextVal) {
+      const permissionGranted = await notificationService.scheduleDailyReminder(reminderHour, reminderMinute)
+      if (!permissionGranted) {
+        setReminder(false)
+        await userService.updateProfile(user.id, { reminder_enabled: false })
+        setUser({ ...user, reminder_enabled: false })
+        showToast('Izin notifikasi ditolak. Buka pengaturan perangkat untuk mengaktifkannya.', 'error')
+        return
+      }
+    } else {
+      await notificationService.cancelDailyReminder()
+    }
+
+    try {
+      const updatedUser = await userService.updateProfile(user.id, {
+        reminder_enabled: nextVal,
+        reminder_hour: reminderHour,
+        reminder_minute: reminderMinute,
+      })
+      setUser(updatedUser)
+      showToast(
+        nextVal
+          ? `Pengingat harian diaktifkan setiap hari pukul ${formatReminderTime(reminderHour, reminderMinute)} 🔔`
+          : 'Pengingat harian dinonaktifkan',
+        'info',
+      )
+    } catch (error) {
+      setReminder(!nextVal)
+      if (nextVal) {
+        await notificationService.cancelDailyReminder()
+      } else {
+        await notificationService.scheduleDailyReminder(user.reminder_hour ?? DEFAULT_REMINDER_HOUR, user.reminder_minute ?? DEFAULT_REMINDER_MINUTE)
+      }
+      showToast(error instanceof Error ? error.message : 'Tidak dapat menyimpan preferensi notifikasi.', 'error')
+    }
+  }
+
+  const handleSaveReminderTime = async () => {
+    if (!user) return
+    if (!Number.isInteger(reminderHour) || !Number.isInteger(reminderMinute) || reminderHour < 0 || reminderHour > 23 || reminderMinute < 0 || reminderMinute > 59) {
+      showToast('Masukkan jam 0–23 dan menit 0–59.', 'error')
+      return
+    }
+
+    setSavingReminder(true)
+    try {
+      if (reminder) {
+        const scheduled = await notificationService.scheduleDailyReminder(reminderHour, reminderMinute)
+        if (!scheduled) {
+          showToast('Izin notifikasi ditolak. Buka pengaturan perangkat untuk mengaktifkannya.', 'error')
+          return
+        }
+      }
+      const updatedUser = await userService.updateProfile(user.id, {
+        reminder_hour: reminderHour,
+        reminder_minute: reminderMinute,
+      })
+      setUser(updatedUser)
+      showToast(`Waktu pengingat disimpan: ${formatReminderTime(reminderHour, reminderMinute)}.`, 'success')
+    } catch (error) {
+      if (reminder) {
+        await notificationService.scheduleDailyReminder(user.reminder_hour ?? DEFAULT_REMINDER_HOUR, user.reminder_minute ?? DEFAULT_REMINDER_MINUTE)
+      }
+      showToast(error instanceof Error ? error.message : 'Waktu pengingat belum dapat disimpan.', 'error')
+    } finally {
+      setSavingReminder(false)
     }
   }
 
@@ -225,7 +308,7 @@ export function ProfilePage() {
           </div>
 
           {/* Reminder Toggle */}
-          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-default)] shadow-xs flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-default)] shadow-xs space-y-3">
             <div className="flex items-center gap-3">
               <Bell className="w-5 h-5 text-[var(--accent-primary)]" />
               <div>
@@ -233,15 +316,59 @@ export function ProfilePage() {
                 <p className="text-[11px] font-semibold text-[var(--text-muted)]">Notifikasi jadwal habit</p>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleToggleReminder}
+                disabled={savingReminder}
+                className={`w-12 h-7 rounded-full transition-colors p-1 flex items-center ${
+                  reminder ? 'bg-[var(--accent-primary)] justify-end' : 'bg-[var(--border-default)] justify-start'
+                }`}
+              >
+                <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+              </button>
+              <span className="hidden text-xs font-semibold text-[var(--text-primary)]">
+                {reminder ? 'Aktif' : 'Mati'} • setiap hari pukul 20.00
+              </span>
+            </div>
+          </div>
+          <div className="flex items-end gap-2">
+            <label className="flex-1 text-[11px] font-bold text-[var(--text-muted)]">
+              Jam
+              <input
+                aria-label="Jam pengingat"
+                type="number"
+                min="0"
+                max="23"
+                value={reminderHour}
+                onChange={event => setReminderHour(Number(event.target.value))}
+                className="mt-1 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+            </label>
+            <span className="pb-2 text-lg font-black text-[var(--text-primary)]">:</span>
+            <label className="flex-1 text-[11px] font-bold text-[var(--text-muted)]">
+              Menit
+              <input
+                aria-label="Menit pengingat"
+                type="number"
+                min="0"
+                max="59"
+                value={reminderMinute}
+                onChange={event => setReminderMinute(Number(event.target.value))}
+                className="mt-1 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+            </label>
             <button
-              onClick={handleToggleReminder}
-              className={`w-12 h-7 rounded-full transition-colors p-1 flex items-center ${
-                reminder ? 'bg-[var(--accent-primary)] justify-end' : 'bg-[var(--border-default)] justify-start'
-              }`}
+              type="button"
+              onClick={handleSaveReminderTime}
+              disabled={savingReminder}
+              className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-xs font-black text-white disabled:opacity-50"
             >
-              <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+              {savingReminder ? 'Menyimpan...' : 'Simpan'}
             </button>
           </div>
+          <p className="text-[11px] font-semibold text-[var(--text-muted)]">
+            {reminder ? 'Aktif' : 'Mati'} • setiap hari pukul {formatReminderTime(reminderHour, reminderMinute)}
+          </p>
 
           {/* Logout Button */}
           <button

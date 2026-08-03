@@ -74,6 +74,8 @@ export interface UserProfile {
   avatar_url?: string | null
   theme: 'light' | 'dark' | 'system'
   reminder_enabled: boolean
+  reminder_hour: number
+  reminder_minute: number
   language: string
 }
 

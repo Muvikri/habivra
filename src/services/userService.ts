@@ -20,6 +20,8 @@ function createDefaultProfile(userId: string): UserProfile {
     avatar_url: null,
     theme: 'system',
     reminder_enabled: true,
+    reminder_hour: 20,
+    reminder_minute: 0,
     language: 'id',
   }
 }

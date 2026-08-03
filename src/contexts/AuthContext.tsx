@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { notificationService } from '../services/notificationService'
 import { userService } from '../services/userService'
 import { syncService } from '../services/syncService'
 import type { UserProfile } from '../types'
@@ -30,6 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await userService.getProfile(id)
       setUser(profile)
       void syncService.start(id)
+      if (profile.reminder_enabled) {
+        void notificationService.scheduleDailyReminder(profile.reminder_hour, profile.reminder_minute)
+      } else {
+        void notificationService.cancelDailyReminder()
+      }
     } catch {
       setUser(MOCK_PROFILE)
     } finally {

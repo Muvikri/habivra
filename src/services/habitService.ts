@@ -2,16 +2,30 @@ import { supabase } from '../lib/supabase'
 import { MOCK_HABITS } from '../constants/mockData'
 import type { Habit } from '../types'
 import { offlineStore } from './offlineStore'
-import { dateKey, progressService } from './progressService'
+import { dateKey, progressService, type HabitLog } from './progressService'
 
 const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
 
 let localHabits = [...MOCK_HABITS]
+let localHabitLogs: HabitLog[] = MOCK_HABITS
+  .filter(habit => habit.done)
+  .map(habit => ({
+    id: `mock-log-${habit.id}`,
+    user_id: habit.user_id,
+    habit_id: habit.id,
+    completed_on: dateKey(new Date()),
+    created_at: new Date().toISOString(),
+  }))
 const isOnline = () => typeof navigator === 'undefined' || navigator.onLine
+
+function applyTodayCompletionState(habits: Habit[], logs: HabitLog[]) {
+  const completedIds = new Set(logs.map(log => log.habit_id))
+  return habits.map(habit => ({ ...habit, done: completedIds.has(habit.id) }))
+}
 
 export interface IHabitService {
   getHabits(userId: string): Promise<Habit[]>
-  getHabitById(id: string): Promise<Habit | null>
+  getHabitById(userId: string, id: string): Promise<Habit | null>
   toggleHabit(userId: string, id: string, done: boolean): Promise<Habit>
   createHabit(habit: Omit<Habit, 'id' | 'created_at' | 'updated_at'>): Promise<Habit>
   deleteHabit(userId: string, id: string): Promise<void>
@@ -19,42 +33,98 @@ export interface IHabitService {
 
 class SupabaseHabitService implements IHabitService {
   async getHabits(userId: string): Promise<Habit[]> {
-    if (USE_MOCK) return localHabits
-    if (!isOnline()) return offlineStore.getHabits(userId)
+    if (USE_MOCK) return applyTodayCompletionState(localHabits, localHabitLogs.filter(log => log.completed_on === dateKey(new Date())))
+    if (!isOnline()) {
+      const [habits, logs] = await Promise.all([offlineStore.getHabits(userId), offlineStore.getHabitLogs(userId)])
+      return applyTodayCompletionState(habits, logs.filter(log => log.completed_on === dateKey(new Date())))
+    }
     const { data, error } = await supabase
       .from('habits')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
-    if (error) return offlineStore.getHabits(userId)
+    if (error) {
+      const [cachedHabits, cachedLogs] = await Promise.all([offlineStore.getHabits(userId), offlineStore.getHabitLogs(userId)])
+      return applyTodayCompletionState(cachedHabits, cachedLogs.filter(log => log.completed_on === dateKey(new Date())))
+    }
     const habits = (data || []) as Habit[]
     await offlineStore.setHabits(userId, habits)
-    return habits
+    try {
+      const logs = await progressService.getToday(userId)
+      await offlineStore.setHabitLogs(userId, logs)
+      return applyTodayCompletionState(habits, logs)
+    } catch {
+      const cachedLogs = await offlineStore.getHabitLogs(userId)
+      return applyTodayCompletionState(habits, cachedLogs.filter(log => log.completed_on === dateKey(new Date())))
+    }
   }
 
-  async getHabitById(id: string): Promise<Habit | null> {
+  async getHabitById(userId: string, id: string): Promise<Habit | null> {
     if (USE_MOCK) {
-      return localHabits.find(h => h.id === id) || null
+      return applyTodayCompletionState(localHabits, localHabitLogs.filter(log => log.completed_on === dateKey(new Date())))
+        .find(habit => habit.id === id) || null
+    }
+    if (!isOnline()) {
+      const [habits, logs] = await Promise.all([offlineStore.getHabits(userId), offlineStore.getHabitLogs(userId)])
+      return applyTodayCompletionState(habits, logs.filter(log => log.completed_on === dateKey(new Date())))
+        .find(habit => habit.id === id) || null
     }
     const { data, error } = await supabase
       .from('habits')
       .select('*')
       .eq('id', id)
       .single()
-    if (error) return null
-    return data as Habit
+    if (error || !data) return null
+    const habit = data as Habit
+    try {
+      const logs = await progressService.getToday(userId)
+      await offlineStore.setHabitLogs(userId, logs)
+      return applyTodayCompletionState([habit], logs)[0]
+    } catch {
+      const logs = await offlineStore.getHabitLogs(userId)
+      return applyTodayCompletionState([habit], logs.filter(log => log.completed_on === dateKey(new Date())))[0]
+    }
   }
 
   async toggleHabit(userId: string, id: string, done: boolean): Promise<Habit> {
     if (USE_MOCK) {
       localHabits = localHabits.map(h => h.id === id ? { ...h, done, streak_count: done ? h.streak_count + 1 : Math.max(0, h.streak_count - 1) } : h)
-      return localHabits.find(h => h.id === id)!
+      localHabitLogs = done
+        ? [...localHabitLogs.filter(log => log.habit_id !== id || log.completed_on !== dateKey(new Date())), {
+            id: `mock-log-${id}-${dateKey(new Date())}`,
+            user_id: userId,
+            habit_id: id,
+            completed_on: dateKey(new Date()),
+            created_at: new Date().toISOString(),
+          }]
+        : localHabitLogs.filter(log => log.habit_id !== id || log.completed_on !== dateKey(new Date()))
+      return applyTodayCompletionState(localHabits, localHabitLogs.filter(log => log.completed_on === dateKey(new Date())))
+        .find(habit => habit.id === id)!
     }
-    const cached = await offlineStore.getHabits(userId)
-    const localHabit = cached.find(habit => habit.id === id)
+    let cached = await offlineStore.getHabits(userId)
+    let localHabit = cached.find(habit => habit.id === id)
+    if (!localHabit) {
+      localHabit = await this.getHabitById(userId, id)
+      if (localHabit) {
+        cached = [...cached, localHabit]
+        await offlineStore.setHabits(userId, cached)
+      }
+    }
     if (!localHabit) throw new Error('Habit tidak ditemukan.')
     const localUpdated = { ...localHabit, done }
     await offlineStore.setHabits(userId, cached.map(habit => habit.id === id ? localUpdated : habit))
+    const cachedLogs = await offlineStore.getHabitLogs(userId)
+    const today = dateKey(new Date())
+    const nextLogs = done
+      ? [...cachedLogs.filter(log => log.habit_id !== id || log.completed_on !== today), {
+          id: `local-${id}-${today}`,
+          user_id: userId,
+          habit_id: id,
+          completed_on: today,
+          created_at: new Date().toISOString(),
+        }]
+      : cachedLogs.filter(log => log.habit_id !== id || log.completed_on !== today)
+    await offlineStore.setHabitLogs(userId, nextLogs)
     if (!isOnline()) {
       await offlineStore.enqueue(userId, { type: 'habit.toggle', id, done, completedOn: dateKey(new Date()) })
       return localUpdated

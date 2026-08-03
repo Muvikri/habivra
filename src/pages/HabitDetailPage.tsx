@@ -21,12 +21,12 @@ export function HabitDetailPage() {
   const [showConfirmDone, setShowConfirmDone] = useState(false)
 
   useEffect(() => {
-    if (!id) return
-    habitService.getHabitById(id).then(data => {
+    if (!id || !user) return
+    habitService.getHabitById(user.id, id).then(data => {
       setHabit(data)
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [id])
+  }, [id, user])
 
   const handleToggleDone = async () => {
     if (!habit || !user) return
@@ -46,12 +46,12 @@ export function HabitDetailPage() {
 
       if (newDoneState) {
         await userService.addXP(user.id, habit.xp)
-        await refresh()
         showToast(`+${habit.xp} XP! Selesai! 🎉`, 'success')
         navigate(`/app/habit/${habit.id}/complete`)
       } else {
         showToast(`Habit ditandai belum selesai`, 'info')
       }
+      await refresh()
     } catch {
       showToast('Gagal memperbarui habit', 'error')
     }

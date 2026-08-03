@@ -62,7 +62,7 @@ export function ChallengePage() {
                 <div className="p-6 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-center space-y-2">
                   <Emoji size="3xl">🏆</Emoji>
                   <p className="text-xs text-[var(--text-muted)] font-bold">
-                    Belum ada tantangan aktif. Ikuti tantangan di bawah!
+                    {challenges.length === 0 ? 'Belum ada event challenge aktif. Cek lagi nanti!' : 'Belum ada tantangan aktif. Ikuti tantangan di bawah!'}
                   </p>
                 </div>
               ) : (

@@ -24,6 +24,15 @@ function startOfWeek() {
 }
 
 export const progressService = {
+  async getToday(userId: string): Promise<HabitLog[]> {
+    const { data, error } = await supabase
+      .from('habit_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('completed_on', dateKey(new Date()))
+    if (error) throw error
+    return (data || []) as HabitLog[]
+  },
   async recordCompletion(userId: string, habitId: string) {
     const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, habit_id: habitId, completed_on: dateKey(new Date()) }, { onConflict: 'user_id,habit_id,completed_on' })
     if (error) throw error

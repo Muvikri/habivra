@@ -1,5 +1,6 @@
 import { Preferences } from '@capacitor/preferences'
 import type { Challenge, Habit } from '../types'
+import type { HabitLog } from './progressService'
 
 type QueueOperation =
   | { type: 'habit.create'; habit: Habit }
@@ -23,8 +24,10 @@ async function write<T>(storageKey: string, value: T) {
 export const offlineStore = {
   getHabits: (userId: string) => read<Habit[]>(key('habits', userId), []),
   setHabits: (userId: string, habits: Habit[]) => write(key('habits', userId), habits),
-  getChallenges: (userId: string) => read<Challenge[]>(key('challenges', userId), []),
-  setChallenges: (userId: string, challenges: Challenge[]) => write(key('challenges', userId), challenges),
+  getHabitLogs: (userId: string) => read<HabitLog[]>(key('habit-logs', userId), []),
+  setHabitLogs: (userId: string, logs: HabitLog[]) => write(key('habit-logs', userId), logs),
+  getChallenges: (userId: string) => read<Challenge[]>(key('community-challenges', userId), []),
+  setChallenges: (userId: string, challenges: Challenge[]) => write(key('community-challenges', userId), challenges),
   getQueue: (userId: string) => read<QueueOperation[]>(key('queue', userId), []),
   async enqueue(userId: string, operation: QueueOperation) {
     const queue = await this.getQueue(userId)

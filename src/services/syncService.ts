@@ -8,12 +8,8 @@ const isOnline = () => typeof navigator === 'undefined' || navigator.onLine
 let subscribedUserId: string | null = null
 
 async function refreshCaches(userId: string) {
-  const [habitsResult, challengesResult] = await Promise.all([
-    supabase.from('habits').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
-    supabase.from('challenges').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-  ])
+  const habitsResult = await supabase.from('habits').select('*').eq('user_id', userId).order('created_at', { ascending: true })
   if (!habitsResult.error && habitsResult.data) await offlineStore.setHabits(userId, habitsResult.data)
-  if (!challengesResult.error && challengesResult.data) await offlineStore.setChallenges(userId, challengesResult.data)
 }
 
 async function applyOperation(userId: string, operation: QueueOperation) {
@@ -30,8 +26,17 @@ async function applyOperation(userId: string, operation: QueueOperation) {
     return supabase.from('habit_logs').delete().eq('user_id', userId).eq('habit_id', operation.id).eq('completed_on', operation.completedOn || dateKey(new Date()))
   }
   if (operation.type === 'habit.delete') return supabase.from('habits').delete().eq('id', operation.id)
-  if (operation.type === 'challenge.join') return supabase.from('challenges').update({ joined: true }).eq('id', operation.id)
-  return supabase.from('challenges').update({ progress: operation.progress, done: operation.progress >= 100 }).eq('id', operation.id)
+  if (operation.type === 'challenge.join') {
+    return supabase.from('challenge_participants').upsert(
+      { challenge_id: operation.id, user_id: userId, progress: 0, done: false },
+      { onConflict: 'challenge_id,user_id', ignoreDuplicates: true },
+    )
+  }
+  return supabase
+    .from('challenge_participants')
+    .update({ progress: operation.progress, done: operation.progress >= 100 })
+    .eq('challenge_id', operation.id)
+    .eq('user_id', userId)
 }
 
 export const syncService = {
@@ -53,7 +58,6 @@ export const syncService = {
       subscribedUserId = userId
       supabase.channel(`habivra-sync-${userId}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'habits', filter: `user_id=eq.${userId}` }, () => { void refreshCaches(userId) })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges', filter: `user_id=eq.${userId}` }, () => { void refreshCaches(userId) })
         .subscribe()
     }
     window.addEventListener('online', () => { void this.flush(userId) })

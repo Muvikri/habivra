@@ -65,7 +65,7 @@ export function AICoachPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col justify-between -mb-16">
+    <div className="flex-1 flex flex-col min-h-0 pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="flex-1 flex flex-col min-h-0">
         <PageHeader
           title="Eco Coach AI 🤖"
@@ -146,7 +146,7 @@ export function AICoachPage() {
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 bg-[var(--bg-primary)] border-t border-[var(--border-subtle)] shrink-0">
+        <div className="p-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] bg-[var(--bg-primary)] border-t border-[var(--border-subtle)] shrink-0">
           <form
             onSubmit={e => {
               e.preventDefault()

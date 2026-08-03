@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { habitService } from '../services/habitService'
@@ -29,6 +29,16 @@ export function DashboardPage() {
   const [addingHabitId, setAddingHabitId] = useState<string | null>(null)
   const notifRef = useRef<HTMLDivElement>(null)
 
+  const loadHabits = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      setHabits(await habitService.getHabits(user.id))
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
+
   const notifications = [
     { icon: '🌿', text: 'Tantangan "Tanpa Sedotan Plastik" tersisa 2 hari!', read: false },
     { icon: '🔥', text: 'Streak kamu mencapai 5 hari berturut-turut!', read: true },
@@ -48,11 +58,25 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!user) return
-    habitService.getHabits(user.id).then(data => {
-      setHabits(data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [user])
+    let timeoutId: number | undefined
+    let cancelled = false
+
+    const refreshAtNextMidnight = () => {
+      const nextMidnight = new Date()
+      nextMidnight.setHours(24, 0, 1, 0)
+      timeoutId = window.setTimeout(async () => {
+        await loadHabits()
+        if (!cancelled) refreshAtNextMidnight()
+      }, Math.max(nextMidnight.getTime() - Date.now(), 1_000))
+    }
+
+    void loadHabits()
+    refreshAtNextMidnight()
+    return () => {
+      cancelled = true
+      if (timeoutId) window.clearTimeout(timeoutId)
+    }
+  }, [loadHabits, user])
 
   const handleToggleHabit = async (id: string, done: boolean) => {
     if (!user) return
@@ -67,13 +91,13 @@ export function DashboardPage() {
       await habitService.toggleHabit(user.id, id, done)
       if (done) {
         await userService.addXP(user.id, target.xp)
-        await refresh()
         showToast(`+${target.xp} XP! Habit "${target.title}" selesai 🎉`, 'success')
         // Navigate to completion celebration screen
         navigate(`/app/habit/${id}/complete`)
       } else {
         showToast(`Batal tandai "${target.title}"`, 'info')
       }
+      await refresh()
     } catch {
       // Rollback on error
       setHabits(prev => prev.map(h => h.id === id ? { ...h, done: !done } : h))

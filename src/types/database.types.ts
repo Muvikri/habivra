@@ -61,6 +61,33 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['challenges']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['challenges']['Insert']>
       }
+      community_challenges: {
+        Row: {
+          id: string
+          icon: string
+          title: string
+          days: number
+          reward: string
+          color: string
+          starts_at: string
+          ends_at: string
+          is_published: boolean
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['community_challenges']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['community_challenges']['Insert']>
+      }
+      challenge_participants: {
+        Row: {
+          challenge_id: string
+          user_id: string
+          progress: number
+          done: boolean
+          joined_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['challenge_participants']['Row'], 'joined_at'>
+        Update: Partial<Database['public']['Tables']['challenge_participants']['Insert']>
+      }
       habit_logs: {
         Row: {
           id: string

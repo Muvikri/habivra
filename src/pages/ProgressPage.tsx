@@ -42,19 +42,7 @@ export function ProgressPage() {
   const completedThisWeek = logs.length
   const average = Math.round(barData.reduce((total, bar) => total + bar.val, 0) / 7)
   const completedTotal = Math.max(user?.total_habits_done || 0, allLogs.length)
-  const currentStreak = useMemo(() => {
-    const days = new Set(allLogs.map(log => log.completed_on))
-    let streak = 0
-    const cursor = new Date()
-    if (!days.has(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`)) {
-      cursor.setDate(cursor.getDate() - 1)
-    }
-    while (days.has(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`)) {
-      streak += 1
-      cursor.setDate(cursor.getDate() - 1)
-    }
-    return streak
-  }, [allLogs])
+  const currentStreak = user?.streak ?? 0
   const achievements = [
     { icon: '🌱', title: 'Eco Beginner', desc: 'Selesaikan 10 habit', unlocked: completedTotal >= 10 },
     { icon: '🌿', title: 'Green Starter', desc: 'Streak 7 hari', unlocked: currentStreak >= 7 },

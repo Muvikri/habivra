@@ -1,34 +1,45 @@
-import { supabase } from '../lib/supabase'
-import { MOCK_PROFILE } from '../constants/mockData'
-import type { UserProfile } from '../types'
+import { supabase } from "../lib/supabase"
+import { MOCK_PROFILE } from "../constants/mockData"
+import type { UserProfile } from "../types"
 
-const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+const USE_MOCK =
+  !import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL.includes("placeholder")
 
 let localProfile = { ...MOCK_PROFILE }
 
 function createDefaultProfile(userId: string): UserProfile {
   return {
     id: userId,
-    name: '',
+    name: "",
+    username: "",
+    is_guest: false,
     level: 1,
-    level_name: 'Pemula Hijau',
+    level_name: "Pemula Hijau",
     xp: 0,
     xp_to_next_level: 300,
     streak: 0,
     total_habits_done: 0,
     onboarding_completed: false,
     avatar_url: null,
-    theme: 'system',
+    theme: "system",
     reminder_enabled: true,
     reminder_hour: 20,
     reminder_minute: 0,
-    language: 'id',
+    language: "id",
   }
 }
 
 export interface IUserService {
   getProfile(userId: string): Promise<UserProfile>
-  updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile>
+  ensureProfile(
+    userId: string,
+    initial?: Partial<UserProfile>,
+  ): Promise<UserProfile>
+  updateProfile(
+    userId: string,
+    data: Partial<UserProfile>,
+  ): Promise<UserProfile>
   uploadAvatar(userId: string, file: File): Promise<string>
   addXP(userId: string, xpGain: number): Promise<UserProfile>
 }
@@ -37,22 +48,58 @@ class SupabaseUserService implements IUserService {
   async getProfile(userId: string): Promise<UserProfile> {
     if (USE_MOCK) return localProfile
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
       .single()
     if (error || !data) return createDefaultProfile(userId)
     return data as UserProfile
   }
 
-  async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+  async ensureProfile(
+    userId: string,
+    initial: Partial<UserProfile> = {},
+  ): Promise<UserProfile> {
+    if (USE_MOCK) {
+      localProfile = { ...localProfile, ...initial, id: userId }
+      return localProfile
+    }
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle()
+    if (existing) return existing as UserProfile
+
+    const profile = { ...createDefaultProfile(userId), ...initial, id: userId }
+    const { data, error } = await supabase
+      .from("profiles")
+      .insert(profile)
+      .select()
+      .single()
+    if (!error && data) return data as UserProfile
+
+    // A concurrent auth trigger may have created the row just before this insert.
+    const { data: createdByTrigger } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle()
+    return createdByTrigger as UserProfile | null || profile
+  }
+
+  async updateProfile(
+    userId: string,
+    updates: Partial<UserProfile>,
+  ): Promise<UserProfile> {
     localProfile = { ...localProfile, ...updates }
     if (USE_MOCK) return localProfile
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from("profiles")
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId)
+      .eq("id", userId)
       .select()
       .single()
     if (error || !data) return { ...createDefaultProfile(userId), ...updates }
@@ -60,19 +107,23 @@ class SupabaseUserService implements IUserService {
   }
 
   async uploadAvatar(userId: string, file: File): Promise<string> {
-    if (!file.type.startsWith('image/')) throw new Error('Pilih file gambar yang valid.')
-    if (file.size > 2 * 1024 * 1024) throw new Error('Ukuran foto maksimal 2 MB.')
+    if (!file.type.startsWith("image/"))
+      throw new Error("Pilih file gambar yang valid.")
+    if (file.size > 2 * 1024 * 1024)
+      throw new Error("Ukuran foto maksimal 2 MB.")
     if (USE_MOCK) return URL.createObjectURL(file)
 
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
     const path = `${userId}/avatar.${extension}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, {
-      upsert: true,
-      cacheControl: '3600',
-      contentType: file.type,
-    })
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, {
+        upsert: true,
+        cacheControl: "3600",
+        contentType: file.type,
+      })
     if (error) throw error
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path)
     return `${data.publicUrl}?v=${Date.now()}`
   }
 
@@ -83,7 +134,9 @@ class SupabaseUserService implements IUserService {
     const updates: Partial<UserProfile> = {
       xp: leveledUp ? newXP - profile.xp_to_next_level : newXP,
       level: leveledUp ? profile.level + 1 : profile.level,
-      xp_to_next_level: leveledUp ? profile.xp_to_next_level + 100 : profile.xp_to_next_level,
+      xp_to_next_level: leveledUp
+        ? profile.xp_to_next_level + 100
+        : profile.xp_to_next_level,
       total_habits_done: profile.total_habits_done + 1,
     }
     return this.updateProfile(userId, updates)

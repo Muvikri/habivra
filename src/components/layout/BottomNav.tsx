@@ -1,54 +1,67 @@
-import { useLocation, useNavigate } from 'react-router-dom'
-import { Emoji } from '../shared/Emoji'
+import {
+  Bot,
+  ChartNoAxesCombined,
+  House,
+  Target,
+  UserRound,
+} from "lucide-react"
+import { useLocation, useNavigate } from "react-router-dom"
+
+const items = [
+  { id: "dashboard", path: "/app/dashboard", icon: House, label: "Home" },
+  {
+    id: "progress",
+    path: "/app/progress",
+    icon: ChartNoAxesCombined,
+    label: "Progress",
+  },
+  { id: "challenge", path: "/app/challenge", icon: Target, label: "Challenge" },
+  { id: "ai-coach", path: "/app/ai-coach", icon: Bot, label: "AI Coach" },
+  { id: "profile", path: "/app/profile", icon: UserRound, label: "Profil" },
+]
 
 export function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const items = [
-    { id: 'dashboard', path: '/app/dashboard', icon: '🏠', label: 'Home' },
-    { id: 'progress', path: '/app/progress', icon: '📊', label: 'Progress' },
-    { id: 'challenge', path: '/app/challenge', icon: '🎯', label: 'Challenge' },
-    { id: 'ai-coach', path: '/app/ai-coach', icon: '🤖', label: 'AI Coach' },
-    { id: 'profile', path: '/app/profile', icon: '👤', label: 'Profil' },
-  ]
-
-  const currentPath = location.pathname
-
   return (
     <nav
-      aria-label="Main Navigation"
-      className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent"
+      aria-label="Navigasi utama"
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-center justify-around rounded-3xl px-2 py-3 bg-[var(--bg-card)] border border-[var(--border-default)] shadow-[var(--shadow-elevated)]">
-        {items.map(item => {
-          const isActive = currentPath === item.path || (item.id === 'dashboard' && currentPath === '/app')
+      <div className="flex h-[68px] items-center justify-between rounded-[1.4rem] border border-[var(--border-default)] bg-[var(--bg-card)] px-1.5 shadow-[0_10px_30px_rgba(5,30,15,0.22)]">
+        {items.map((item) => {
+          const isActive =
+            location.pathname === item.path ||
+            (item.id === "dashboard" && location.pathname === "/app")
+          const Icon = item.icon
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => navigate(item.path)}
-              aria-current={isActive ? 'page' : undefined}
+              aria-current={isActive ? "page" : undefined}
               aria-label={item.label}
-              className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-xl transition-all duration-200 ${
-                isActive ? 'opacity-100 scale-105' : 'opacity-50 hover:opacity-80'
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 transition-all duration-200 ${
+                isActive
+                  ? "text-[var(--accent-primary)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <Emoji
-                size="lg"
-                className={isActive ? 'text-[var(--accent-primary)]' : ''}
-              >
-                {item.icon}
-              </Emoji>
               <span
-                className={`text-[10px] font-bold ${
-                  isActive ? 'text-[var(--accent-light)]' : 'text-[var(--text-muted)]'
+                className={`flex size-8 items-center justify-center rounded-xl transition-colors ${
+                  isActive ? "bg-[var(--accent-muted)]" : "bg-transparent"
+                }`}
+              >
+                <Icon className="size-[21px] stroke-[2.25]" />
+              </span>
+              <span
+                className={`text-[9px] leading-none ${
+                  isActive ? "font-black" : "font-bold"
                 }`}
               >
                 {item.label}
               </span>
-              {isActive && (
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)] animate-pulse" />
-              )}
             </button>
           )
         })}

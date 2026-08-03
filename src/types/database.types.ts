@@ -103,12 +103,24 @@ export type Database = {
         Row: {
           id: string
           user_id: string
+          conversation_id: string
           from_role: 'user' | 'ai'
           text: string
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['chat_messages']['Row'], 'created_at'>
         Update: never
+      }
+      chat_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['chat_conversations']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Pick<Database['public']['Tables']['chat_conversations']['Row'], 'title' | 'updated_at'>
       }
       weekly_reflections: {
         Row: {

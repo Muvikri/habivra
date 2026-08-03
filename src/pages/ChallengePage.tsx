@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
-import { PageHeader } from '../components/layout/PageHeader'
-import { challengeService } from '../services/challengeService'
-import { useAuth } from '../contexts/AuthContext'
-import type { Challenge } from '../types'
-import { ChallengeCard } from '../components/shared/ChallengeCard'
-import { BottomNav } from '../components/layout/BottomNav'
-import { useToast } from '../hooks/useToast'
-import { ToastProvider } from '../components/shared/ToastProvider'
-import { Emoji } from '../components/shared/Emoji'
+import { useEffect, useState } from "react"
+import { PageHeader } from "../components/layout/PageHeader"
+import { challengeService } from "../services/challengeService"
+import { useAuth } from "../contexts/AuthContext"
+import type { Challenge } from "../types"
+import { ChallengeCard } from "../components/shared/ChallengeCard"
+import { BottomNav } from "../components/layout/BottomNav"
+import { useToast } from "../hooks/useToast"
+import { ToastProvider } from "../components/shared/ToastProvider"
+import { Trophy } from "lucide-react"
 
 export function ChallengePage() {
   const { user } = useAuth()
@@ -17,25 +17,31 @@ export function ChallengePage() {
 
   useEffect(() => {
     if (!user) return
-    challengeService.getChallenges(user.id).then(data => {
-      setChallenges(data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    challengeService
+      .getChallenges(user.id)
+      .then((data) => {
+        setChallenges(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [user])
 
   const handleJoin = async (id: string) => {
     try {
       if (!user) return
       const updated = await challengeService.joinChallenge(user.id, id)
-      setChallenges(prev => prev.map(c => c.id === id ? updated : c))
-      showToast(`Berhasil mengikuti tantangan "${updated.title}"! 🎯`, 'success')
+      setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c)))
+      showToast(
+        `Berhasil mengikuti tantangan "${updated.title}"! 🎯`,
+        "success",
+      )
     } catch {
-      showToast('Gagal mengikuti tantangan', 'error')
+      showToast("Gagal mengikuti tantangan", "error")
     }
   }
 
-  const joinedList = challenges.filter(c => c.joined)
-  const availableList = challenges.filter(c => !c.joined)
+  const joinedList = challenges.filter((c) => c.joined)
+  const availableList = challenges.filter((c) => !c.joined)
 
   return (
     <div className="flex-1 flex flex-col justify-between">
@@ -59,16 +65,31 @@ export function ChallengePage() {
                 Tantangan Aktif ({joinedList.length}) 🎯
               </h3>
               {joinedList.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-center space-y-2">
-                  <Emoji size="3xl">🏆</Emoji>
-                  <p className="text-xs text-[var(--text-muted)] font-bold">
-                    {challenges.length === 0 ? 'Belum ada event challenge aktif. Cek lagi nanti!' : 'Belum ada tantangan aktif. Ikuti tantangan di bawah!'}
-                  </p>
+                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent-primary)]">
+                    <Trophy className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-extrabold text-[var(--text-primary)]">
+                      {challenges.length === 0
+                        ? "Belum ada tantangan saat ini"
+                        : "Belum ada tantangan aktif"}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-[var(--text-muted)]">
+                      {challenges.length === 0
+                        ? "Kami sedang menyiapkan tantangan baru untukmu."
+                        : "Pilih tantangan dari rekomendasi di bawah."}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {joinedList.map(c => (
-                    <ChallengeCard key={c.id} challenge={c} onJoin={handleJoin} />
+                  {joinedList.map((c) => (
+                    <ChallengeCard
+                      key={c.id}
+                      challenge={c}
+                      onJoin={handleJoin}
+                    />
                   ))}
                 </div>
               )}
@@ -81,8 +102,12 @@ export function ChallengePage() {
                   Rekomendasi Tantangan 🌱
                 </h3>
                 <div className="space-y-3">
-                  {availableList.map(c => (
-                    <ChallengeCard key={c.id} challenge={c} onJoin={handleJoin} />
+                  {availableList.map((c) => (
+                    <ChallengeCard
+                      key={c.id}
+                      challenge={c}
+                      onJoin={handleJoin}
+                    />
                   ))}
                 </div>
               </div>

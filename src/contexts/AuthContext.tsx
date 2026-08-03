@@ -1,12 +1,20 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { notificationService } from '../services/notificationService'
-import { userService } from '../services/userService'
-import { syncService } from '../services/syncService'
-import type { UserProfile } from '../types'
-import { MOCK_PROFILE } from '../constants/mockData'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react"
+import { supabase } from "../lib/supabase"
+import { notificationService } from "../services/notificationService"
+import { userService } from "../services/userService"
+import { syncService } from "../services/syncService"
+import type { UserProfile } from "../types"
+import { MOCK_PROFILE } from "../constants/mockData"
 
-const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+const USE_MOCK =
+  !import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL.includes("placeholder")
 
 interface AuthContextValue {
   user: UserProfile | null
@@ -23,16 +31,34 @@ const AuthContext = createContext<AuthContextValue>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(USE_MOCK ? MOCK_PROFILE : null)
+  const [user, setUser] = useState<UserProfile | null>(
+    USE_MOCK ? MOCK_PROFILE : null,
+  )
   const [loading, setLoading] = useState(!USE_MOCK)
 
-  const loadUser = useCallback(async (id: string) => {
+  const loadUser = useCallback(async (id: string, isGuest = false) => {
     try {
-      const profile = await userService.getProfile(id)
-      setUser(profile)
+      const profile = await userService.ensureProfile(
+        id,
+        isGuest
+          ? {
+              name: "Pengunjung",
+              username: "",
+              is_guest: true,
+              onboarding_completed: false,
+            }
+          : {},
+      )
+      const resolvedProfile = isGuest
+        ? { ...profile, is_guest: true, name: profile.name || "Pengunjung" }
+        : profile
+      setUser(resolvedProfile)
       void syncService.start(id)
       if (profile.reminder_enabled) {
-        void notificationService.scheduleDailyReminder(profile.reminder_hour, profile.reminder_minute)
+        void notificationService.scheduleDailyReminder(
+          profile.reminder_hour,
+          profile.reminder_minute,
+        )
       } else {
         void notificationService.cancelDailyReminder()
       }
@@ -52,15 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        loadUser(session.user.id)
+        loadUser(
+          session.user.id,
+          Boolean((session.user as { is_anonymous?: boolean }).is_anonymous),
+        )
       } else {
         setLoading(false)
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        loadUser(session.user.id)
+        loadUser(
+          session.user.id,
+          Boolean((session.user as { is_anonymous?: boolean }).is_anonymous),
+        )
       } else {
         setUser(null)
         setLoading(false)
@@ -78,8 +112,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return
     }
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) await loadUser(session.user.id)
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session)
+      await loadUser(
+        session.user.id,
+        Boolean((session.user as { is_anonymous?: boolean }).is_anonymous),
+      )
   }
 
   return (

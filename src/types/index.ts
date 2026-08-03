@@ -50,9 +50,18 @@ export interface WeekDay {
 export interface ChatMessage {
   id: string
   user_id: string
-  from_role: 'user' | 'ai'
+  conversation_id: string
+  from_role: "user" | "ai"
   text: string
   created_at: string
+}
+
+export interface ChatConversation {
+  id: string
+  user_id: string
+  title: string
+  created_at: string
+  updated_at: string
 }
 
 export interface AIInsight {
@@ -64,6 +73,8 @@ export interface AIInsight {
 export interface UserProfile {
   id: string
   name: string
+  username: string
+  is_guest?: boolean
   level: number
   level_name: string
   xp: number
@@ -72,7 +83,7 @@ export interface UserProfile {
   total_habits_done: number
   onboarding_completed: boolean
   avatar_url?: string | null
-  theme: 'light' | 'dark' | 'system'
+  theme: "light" | "dark" | "system"
   reminder_enabled: boolean
   reminder_hour: number
   reminder_minute: number
@@ -85,6 +96,6 @@ export interface NotificationItem {
   read: boolean
 }
 
-export type NavTab = 'dashboard' | 'progress' | 'challenge' | 'ai-coach' | 'profile'
+export type NavTab = "dashboard" | "progress" | "challenge" | "ai-coach" | "profile"
 
-export type Theme = 'light' | 'dark' | 'system'
+export type Theme = "light" | "dark" | "system"

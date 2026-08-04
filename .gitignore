@@ -41,3 +41,13 @@ Thumbs.db
 
 # Copilot
 .claude-replay.*
+
+# Android
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+
+# Signing
+*.jks
+*.keystore

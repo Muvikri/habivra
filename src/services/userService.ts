@@ -22,7 +22,7 @@ function createDefaultProfile(userId: string): UserProfile {
     total_habits_done: 0,
     onboarding_completed: false,
     avatar_url: null,
-    theme: "system",
+    theme: "light",
     reminder_enabled: true,
     reminder_hour: 20,
     reminder_minute: 0,

@@ -9,23 +9,19 @@ const USE_MOCK =
 
 export interface IAuthService {
   loginWithGoogle(): Promise<void>
-  loginWithUsername(username: string, password: string): Promise<UserProfile>
-  registerWithUsername(
+  loginWithEmail(email: string, password: string): Promise<UserProfile>
+  registerWithEmail(
     displayName: string,
-    username: string,
+    email: string,
     password: string,
   ): Promise<UserProfile>
-  upgradeGuestAccount(username: string, password: string): Promise<void>
+  upgradeGuestAccount(email: string, password: string): Promise<void>
   loginAsGuest(): Promise<UserProfile>
   logout(): Promise<void>
   getSession(): Promise<UserProfile | null>
 }
 
 class SupabaseAuthService implements IAuthService {
-  private usernameToEmail(username: string) {
-    return `${username.trim().toLowerCase()}@users.habivra.app`
-  }
-
   async loginWithGoogle(): Promise<void> {
     if (USE_MOCK) return
     const { error } = await supabase.auth.signInWithOAuth({
@@ -35,41 +31,37 @@ class SupabaseAuthService implements IAuthService {
     if (error) throw error
   }
 
-  async loginWithUsername(
-    username: string,
-    password: string,
-  ): Promise<UserProfile> {
+  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
     if (USE_MOCK) return MOCK_PROFILE
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: this.usernameToEmail(username),
+      email: email.trim().toLowerCase(),
       password,
     })
     if (error) throw error
     return this._fetchProfile(data.user.id)
   }
 
-  async registerWithUsername(
+  async registerWithEmail(
     displayName: string,
-    username: string,
+    email: string,
     password: string,
   ): Promise<UserProfile> {
     if (USE_MOCK) {
       return {
         ...MOCK_PROFILE,
         name: displayName.trim(),
-        username: username.trim().toLowerCase(),
+        username: "",
         is_guest: false,
         onboarding_completed: false,
       }
     }
-    const normalizedUsername = username.trim().toLowerCase()
+    const normalizedEmail = email.trim().toLowerCase()
     const { data, error } = await supabase.auth.signUp({
-      email: this.usernameToEmail(normalizedUsername),
+      email: normalizedEmail,
       password,
       options: {
         data: {
           name: displayName.trim(),
-          username: normalizedUsername,
           is_guest: false,
         },
       },
@@ -79,19 +71,18 @@ class SupabaseAuthService implements IAuthService {
       throw new Error("Akun belum dapat dibuat. Silakan coba lagi.")
     if (!data.session) {
       throw new Error(
-        "Pendaftaran berhasil, tetapi konfirmasi email masih aktif di Supabase. Nonaktifkan Confirm email untuk autentikasi berbasis username.",
+        "Pendaftaran berhasil, tetapi konfirmasi email masih aktif di Supabase. Nonaktifkan Confirm email agar pengguna bisa langsung masuk.",
       )
     }
     return this._fetchProfile(data.user.id)
   }
 
-  async upgradeGuestAccount(username: string, password: string): Promise<void> {
+  async upgradeGuestAccount(email: string, password: string): Promise<void> {
     if (USE_MOCK) return
-    const normalizedUsername = username.trim().toLowerCase()
     const { error } = await supabase.auth.updateUser({
-      email: this.usernameToEmail(normalizedUsername),
+      email: email.trim().toLowerCase(),
       password,
-      data: { username: normalizedUsername, is_guest: false },
+      data: { is_guest: false },
     })
     if (error) throw error
   }

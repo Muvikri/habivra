@@ -227,7 +227,7 @@ export function ProfilePage() {
   }
 
   const handleLogout = async () => {
-    if (user?.is_guest || !user?.username) {
+    if (user?.is_guest) {
       setShowGuestLogoutWarning(true)
       return
     }
@@ -288,7 +288,7 @@ export function ProfilePage() {
           subtitle="Pengaturan akun & refleksi mingguan"
         />
 
-        {(user?.is_guest || !user?.username) && (
+        {user?.is_guest && (
           <button
             type="button"
             onClick={handleCompleteAccount}
@@ -303,7 +303,8 @@ export function ProfilePage() {
                   Jangan biarkan progresmu hilang
                 </span>
                 <span className="mt-0.5 block text-[11px] font-semibold text-white/85">
-                  Isi username-mu agar bisa login lagi dan menyimpan akunmu.
+                  Tambahkan email dan kata sandi agar bisa login lagi dan
+                  menyimpan akunmu.
                 </span>
               </span>
               <span className="text-xs font-black self-center">
@@ -330,11 +331,6 @@ export function ProfilePage() {
               {user?.name || "Eco Warrior"}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              {user?.username && (
-                <span className="text-xs font-bold text-[var(--text-muted)]">
-                  @{user.username}
-                </span>
-              )}
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[var(--accent-primary)] text-white">
                 Level {user?.level || 1} • {user?.level_name || "Pemula Hijau"}
               </span>
@@ -606,11 +602,15 @@ export function ProfilePage() {
             <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
               <AlertTriangle className="size-6" />
             </div>
-            <h2 id="guest-logout-title" className="text-lg font-black text-[var(--text-primary)]">
+            <h2
+              id="guest-logout-title"
+              className="text-lg font-black text-[var(--text-primary)]"
+            >
               Kamu masih memakai akun guest
             </h2>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--text-muted)]">
-              Jika keluar sekarang, kamu tidak punya username dan kata sandi untuk masuk kembali. Progres akun guest ini bisa sulit dipulihkan.
+              Jika keluar sekarang, kamu belum punya email dan kata sandi untuk
+              masuk kembali. Progres akun guest ini bisa sulit dipulihkan.
             </p>
             <button
               type="button"

@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { AtSign, UserRound } from "lucide-react"
+import { Mail, UserRound } from "lucide-react"
 import { authService } from "../services/authService"
 import { useAuth } from "../contexts/AuthContext"
 import { Emoji } from "../components/shared/Emoji"
 import splashIcon from "../assets/habivra-splash-icon.png"
 
-const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading, setUser } = useAuth()
   const [mode, setMode] = useState<"login" | "register">("login")
   const [displayName, setDisplayName] = useState("")
-  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
@@ -34,24 +35,24 @@ export function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    const normalizedUsername = username.trim().toLowerCase()
-    if (!USERNAME_PATTERN.test(normalizedUsername))
-      return setErrorMsg(
-        "Username gunakan 3–20 huruf kecil, angka, atau garis bawah.",
-      )
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!EMAIL_PATTERN.test(normalizedEmail))
+      return setErrorMsg("Masukkan alamat email yang valid.")
     if (mode === "register" && !displayName.trim())
       return setErrorMsg("Display name wajib diisi.")
     if (password.length < 6)
       return setErrorMsg("Kata sandi minimal 6 karakter.")
+    if (mode === "register" && password !== confirmPassword)
+      return setErrorMsg("Konfirmasi kata sandi tidak sama.")
     setLoading(true)
     setErrorMsg("")
     try {
       const profile =
         mode === "login"
-          ? await authService.loginWithUsername(normalizedUsername, password)
-          : await authService.registerWithUsername(
+          ? await authService.loginWithEmail(normalizedEmail, password)
+          : await authService.registerWithEmail(
               displayName,
-              normalizedUsername,
+              normalizedEmail,
               password,
             )
       continueWithProfile(profile)
@@ -60,7 +61,7 @@ export function LoginPage() {
         error instanceof Error
           ? error.message
           : mode === "login"
-            ? "Gagal masuk. Periksa username dan kata sandi."
+            ? "Gagal masuk. Periksa email dan kata sandi."
             : "Gagal membuat akun.",
       )
     } finally {
@@ -103,7 +104,7 @@ export function LoginPage() {
         <p className="text-xs font-semibold text-[var(--text-muted)] mt-1 max-w-xs mx-auto">
           {mode === "login"
             ? "Masuk dan lanjutkan kebiasaan hijaumu."
-            : "Tidak perlu email. Cukup pilih username dan kata sandi."}
+            : "Gunakan email dan kata sandi untuk menyimpan progresmu."}
         </p>
       </div>
 
@@ -152,17 +153,16 @@ export function LoginPage() {
           )}
           <label className="block">
             <span className="block text-xs font-bold text-[var(--text-muted)] mb-1">
-              Username
+              Email
             </span>
             <div className="relative">
-              <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[var(--text-muted)]" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[var(--text-muted)]" />
               <input
-                value={username}
-                onChange={(event) =>
-                  setUsername(event.target.value.toLowerCase())
-                }
-                placeholder="Isi username kamu"
-                autoCapitalize="none"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="nama@email.com"
+                autoComplete="email"
                 required
                 className="w-full pl-11 pr-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
               />
@@ -182,6 +182,23 @@ export function LoginPage() {
               className="w-full px-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
             />
           </label>
+          {mode === "register" && (
+            <label className="block">
+              <span className="block text-xs font-bold text-[var(--text-muted)] mb-1">
+                Konfirmasi Kata Sandi
+              </span>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Ulangi kata sandi"
+                minLength={6}
+                autoComplete="new-password"
+                required
+                className="w-full px-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+            </label>
+          )}
           <button
             type="submit"
             disabled={loading}

@@ -1,42 +1,42 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, AtSign, UserRound } from "lucide-react"
+import { ArrowLeft, Mail, UserRound } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { userService } from "../services/userService"
 import { authService } from "../services/authService"
-import { Emoji } from "../components/shared/Emoji"
+import splashIcon from "../assets/habivra-splash-icon.png"
 
-const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function AccountSetupPage() {
   const navigate = useNavigate()
   const { user, setUser } = useAuth()
   const [displayName, setDisplayName] = useState(user?.name ?? "")
-  const [username, setUsername] = useState(user?.username ?? "")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    const normalizedUsername = username.trim().toLowerCase()
+    const normalizedEmail = email.trim().toLowerCase()
     if (!displayName.trim())
       return setErrorMessage("Nama tampilan wajib diisi.")
-    if (!USERNAME_PATTERN.test(normalizedUsername)) {
-      return setErrorMessage(
-        "Username gunakan 3-20 huruf kecil, angka, atau garis bawah.",
-      )
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      return setErrorMessage("Masukkan alamat email yang valid.")
     }
     if (password.length < 6)
       return setErrorMessage("Kata sandi minimal 6 karakter.")
+    if (password !== confirmPassword)
+      return setErrorMessage("Konfirmasi kata sandi tidak sama.")
     if (!user) return
     setSaving(true)
     setErrorMessage("")
     try {
-      await authService.upgradeGuestAccount(normalizedUsername, password)
+      await authService.upgradeGuestAccount(normalizedEmail, password)
       const updated = await userService.updateProfile(user.id, {
         name: displayName.trim(),
-        username: normalizedUsername,
         is_guest: false,
       })
       setUser(updated)
@@ -61,8 +61,12 @@ export function AccountSetupPage() {
           <ArrowLeft className="size-4" />
           Kembali
         </button>
-        <div className="w-16 h-16 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-default)] flex items-center justify-center mx-auto mb-4 shadow-sm">
-          <Emoji size="3xl">🌱</Emoji>
+        <div className="mx-auto mb-4 size-16 overflow-hidden rounded-2xl border border-white/60 bg-[#fff5e3] shadow-sm">
+          <img
+            src={splashIcon}
+            alt="Logo Habivra"
+            className="size-full object-cover"
+          />
         </div>
         <h1 className="text-2xl font-black text-[var(--text-primary)]">
           Buat identitasmu
@@ -110,24 +114,35 @@ export function AccountSetupPage() {
         </label>
         <label className="block">
           <span className="block text-xs font-bold text-[var(--text-muted)] mb-1">
-            Username
+            Konfirmasi Kata Sandi
+          </span>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            minLength={6}
+            placeholder="Ulangi kata sandi"
+            autoComplete="new-password"
+            required
+            className="w-full px-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+          />
+        </label>
+        <label className="block">
+          <span className="block text-xs font-bold text-[var(--text-muted)] mb-1">
+            Email
           </span>
           <div className="relative">
-            <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[var(--text-muted)]" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[var(--text-muted)]" />
             <input
-              value={username}
-              onChange={(event) =>
-                setUsername(event.target.value.toLowerCase())
-              }
-              maxLength={20}
-              placeholder="Isi username kamu"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="nama@email.com"
+              autoComplete="email"
               required
               className="w-full pl-11 pr-4 py-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
             />
           </div>
-          <span className="mt-1 block text-[10px] font-semibold text-[var(--text-muted)]">
-            3-20 karakter: huruf kecil, angka, atau _
-          </span>
         </label>
         <button
           type="submit"
